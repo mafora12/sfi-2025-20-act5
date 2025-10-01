@@ -91,50 +91,130 @@ function checkWindowPosition() {
 }
 
 
+// Array para las estrellas
+let stars = [];
+
 function draw() {
-    background(220);
-    
+    checkWindowPosition();
+
+    // --- Fondo reactivo ---
     if (!isConnected) {
-        showStatus('Conectando al servidor...', color(255, 165, 0));
-        return;
-    }
-    
-    if (!hasRemoteData) {
-        showStatus('Esperando conexión de la otra ventana...', color(255, 165, 0));
-        return;
-    }
-    
-    if (!isFullySynced) {
-        showStatus('Sincronizando datos...', color(255, 165, 0));
+        background(30);
+        showStatus('Conectando al servidor...', color(0, 200, 255));
         return;
     }
 
-    // Solo dibujar cuando esté completamente sincronizado
-    drawCircle(point2[0], point2[1]);
-    checkWindowPosition();
-    
+    if (!hasRemoteData) {
+        background(30);
+        showStatus('Esperando conexión de la otra ventana...', color(0, 200, 255));
+        return;
+    }
+
+    if (!isFullySynced) {
+        background(30);
+        showStatus('Sincronizando datos...', color(0, 200, 255));
+        return;
+    }
+
+    // Calculamos vector y distancia
     let vector2 = createVector(remotePageData.x, remotePageData.y);
     let vector1 = createVector(currentPageData.x, currentPageData.y);
     let resultingVector = createVector(vector2.x - vector1.x, vector2.y - vector1.y);
-    
-    // Calculamos la distancia entre los puntos
-    let d = dist(point2[0], point2[1], resultingVector.x + remotePageData.width / 2, resultingVector.y + remotePageData.height / 2);
-    
-    stroke(50);
-    strokeWeight(20);
 
-    // Cambiamos el color del círculo dependiendo de la distancia
-    if (d < 100) { 
-        fill(0, 255, 0);  // Verde
+    let remoteX = resultingVector.x + remotePageData.width / 2;
+    let remoteY = resultingVector.y + remotePageData.height / 2;
+
+    let d = dist(point2[0], point2[1], remoteX, remoteY);
+
+    // --- Fondo dinámico ---
+    if (d < 200) {
+        setGradient(0, 0, width, height, color(50, 50, 80), color(255, 200, 100));
     } else {
-        fill(255, 0, 0);  // Rojo
+        background(30);
     }
 
-    // Dibujar el círculo
-    ellipse(resultingVector.x + remotePageData.width / 2, resultingVector.y + remotePageData.height / 2, 50, 50);
+    // --- Pulso rítmico ---
+    let pulseSpeed = map(d, 50, 600, 0.15, 0.05, true);
+    let pulsingSize = 120 + sin(frameCount * pulseSpeed) * 15;
 
-    // Dibujar la línea
-    line(point2[0], point2[1], resultingVector.x + remotePageData.width / 2, resultingVector.y + remotePageData.height / 2);
+    // --- Glow dinámico ---
+    let glowColor = lerpColor(color(0, 150, 255), color(255, 220, 0), map(d, 600, 50, 0, 1, true));
+    drawingContext.shadowBlur = 40;
+    drawingContext.shadowColor = glowColor;
+
+    // --- Círculo propio ---
+    drawCircle(point2[0], point2[1], pulsingSize, glowColor);
+
+    // --- Círculo remoto ---
+    drawCircle(remoteX, remoteY, pulsingSize * 0.8, glowColor);
+
+    // --- Efecto de choque de energía + estrellitas ---
+    if (d < 50) {
+        fill(255);
+        noStroke();
+        ellipse(point2[0], point2[1], pulsingSize * 1.2);
+        ellipse(remoteX, remoteY, pulsingSize * 1.2);
+
+        // Generar nuevas estrellitas
+        for (let i = 0; i < 5; i++) {
+            stars.push(new Star((point2[0] + remoteX) / 2, (point2[1] + remoteY) / 2));
+        }
+    }
+
+    // Dibujar y actualizar estrellas
+    for (let i = stars.length - 1; i >= 0; i--) {
+        stars[i].update();
+        stars[i].show();
+        if (stars[i].finished()) {
+            stars.splice(i, 1);
+        }
+    }
+}
+
+// Clase Star ✨
+class Star {
+    constructor(x, y) {
+        this.pos = createVector(x, y);
+        this.vel = p5.Vector.random2D().mult(random(1, 4));
+        this.alpha = 255;
+        this.size = random(5, 12);
+        this.color = color(255, 255, random(150, 255));
+    }
+
+    update() {
+        this.pos.add(this.vel);
+        this.alpha -= 4;
+    }
+
+    finished() {
+        return this.alpha <= 0;
+    }
+
+    show() {
+        noStroke();
+        fill(red(this.color), green(this.color), blue(this.color), this.alpha);
+        drawingContext.shadowBlur = 20;
+        drawingContext.shadowColor = this.color;
+        ellipse(this.pos.x, this.pos.y, this.size);
+    }
+}
+
+// Función para dibujar círculo con glow
+function drawCircle(x, y, size, c) {
+    noStroke();
+    fill(c);
+    ellipse(x, y, size);
+}
+
+// Función de degradado para el fondo
+function setGradient(x, y, w, h, c1, c2) {
+    noFill();
+    for (let i = y; i <= y + h; i++) {
+        let inter = map(i, y, y + h, 0, 1);
+        let c = lerpColor(c1, c2, inter);
+        stroke(c);
+        line(x, i, x + w, i);
+    }
 }
 
 
@@ -153,10 +233,7 @@ function showStatus(message, statusColor) {
     text(message, width / 2, 1*height / 6);
 }
 
-function drawCircle(x, y) {
-    fill(255, 0, 0);
-    ellipse(x, y, 150, 150);
-}
+
 
 function windowResized() {
     resizeCanvas(windowWidth, windowHeight);
