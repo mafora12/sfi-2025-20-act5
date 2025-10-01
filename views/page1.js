@@ -40,7 +40,7 @@ function setup() {
         if (response && response.data && isValidRemoteData(response.data)) {
             remotePageData = response.data;
             hasRemoteData = true;
-            console.log('Received valid remote data:', remotePageData);
+            console.log('Received valid remote data mariana:', remotePageData);
             socket.emit('confirmSync');
         }
     });
